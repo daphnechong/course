@@ -3,6 +3,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleInstances #-}
 
+-- doctest -isrc src/Course/List.hs
+
+
 -- + Complete the 10 exercises below by filling out the function bodies.
 --   Replace the function bodies (error "todo") with an appropriate solution.
 -- + These exercises may be done in any order, however:
@@ -26,7 +29,7 @@ import qualified Numeric as N
 -- >>> instance Arbitrary a => Arbitrary (List a) where arbitrary = P.fmap (P.foldr (:.) Nil) arbitrary
 
 -- BEGIN Helper functions and data types
-
+  
 -- The custom list type
 data List t =
   Nil
@@ -55,6 +58,23 @@ foldLeft :: (b -> a -> b) -> b -> List a -> b
 foldLeft _ b Nil      = b
 foldLeft f b (h :. t) = let b' = f b h in b' `seq` foldLeft f b' t
 
+
+
+-- http://en.wikibooks.org/wiki/Haskell/List_processing
+-- 
+--Technical Note: The left associative fold is tail-recursive, that is, it recurses immediately, calling itself. 
+--For this reason the compiler will optimise it to a simple loop, and it will then be much more efficient than foldr. 
+--However, Haskell is a lazy language, and so the calls to f will by default be left unevaluated, building up 
+--an expression in memory whose size is linear in the length of the list, exactly what we hoped to avoid in the 
+--first place. To get back this efficiency, there is a version of foldl which is strict, that is, it forces the 
+--evaluation of f immediately, called foldl'. Note the single quote character: this is pronounced "fold-ell-tick". 
+--A tick is a valid character in Haskell identifiers. foldl' can be found in the library Data.List (which can be 
+--imported by adding import Data.List to the beginning of a source file). As a rule of thumb you should use foldr 
+--on lists that might be infinite or where the fold is building up a data structure, and foldl' if the list is 
+--known to be finite and comes down to a single value. foldl (without the tick) should rarely be used at all, 
+--unless the list is not too long, or memory usage isn't a problem.
+
+
 -- END Helper functions and data types
 
 -- | Returns the head of the list or the given default.
@@ -73,7 +93,17 @@ headOr ::
   -> List a
   -> a
 headOr h Nil = h
-headOr _ (t:._) = t
+headOr _ (t:. _) = t
+
+
+-- ******* don't use a different formatting for the type declaration (previously it has all been on the same line, now it is on a new one)
+-- ******* clarify that headOr returns a head of a list, or a number (the number part isn't obvious)
+-- ******* maybe ask for a function to return the head of a list  - forget the Or part
+-- ******* rename the operator 'cons' - is it concatenate?
+-- ******* clarify that you've removed the entire haskell library, you can't do a traditional list instantiation [x:y]
+-- ******* unclear what target audience of the course is - people with no programming experience, people who don't use functional programming, people who have experience in functonal programming 
+-- ******* feel like the course jumps several steps with every new concept e.g. sequence, optionals, etc. introduced in the same problem
+-- ******* not enough time to digest problems before we are shown a new one, plus more substitutions
 
 -- | The product of the elements of a list.
 --
@@ -85,8 +115,7 @@ headOr _ (t:._) = t
 product ::
   List Int
   -> Int
-product =
-  foldRight (*) 1
+product = foldRight (*) 1
 
 -- | Sum the elements of the list.
 --
@@ -100,10 +129,7 @@ product =
 sum ::
   List Int
   -> Int
-sum Nil =
-  0
-sum (h :. t) = 
-  h + sum t 
+sum = foldRight (+) 0
 
 -- | Return the length of the list.
 --
@@ -114,10 +140,7 @@ sum (h :. t) =
 length ::
   List a
   -> Int
-length Nil =
-  0
-length (_ :. t) =
-  1 + length t
+length = foldRight (\h acc -> acc + 1) 0
 
 -- | Map the given function on each element of the list.
 --
@@ -131,18 +154,17 @@ map ::
   (a -> b)
   -> List a
   -> List b
-map _ Nil =
-  Nil
-map f (h :. t) =
-  -- f :: a -> b 
-  -- h :: a
-  -- t :: List a
-  -- map :: (a -> b) -> List a -> List b
+--map _ Nil = Nil
+--map f (h:.t) = (f h) :. map f t
+map f = foldRight (\h acc -> f h :. acc) Nil
 
-  -- f h :: b
-  -- f h :. map f t :: List b
-  -- map f t :: List b
-  f h :. map f t
+
+map' ::
+  (a -> b)
+  -> List a
+  -> List b
+map' _ Nil = Nil
+map' f (h:.t) = (:.) (f h) (map' f t)
 
 -- | Return elements satisfying the given predicate.
 --
@@ -158,14 +180,31 @@ filter ::
   (a -> Bool)
   -> List a
   -> List a
-filter _ Nil =
-  Nil
-filter p (h:.t) = 
-  (if p h then (h :.) else id) (filter p t)
+--filter _ Nil = Nil
+--filter f (h:.t) = if (f h) then h :. filter f t else filter f t 
+filter f = foldRight (\h -> if f h then (h :.) else id) Nil
 
-filteragain :: (a -> Bool) -> (List a -> List a)
-filteragain p =
-  foldRight (\h -> if p h then (h :.) else id) Nil
+-- *********************** TODO ask about the (h :.) syntax. I expected to concatenate that with something (h:.id) maybe?
+-- also, why don't I need the accumulator argument?
+
+filter' ::
+  (a -> Bool)
+  -> List a
+  -> List a
+filter' _ Nil = Nil
+filter' f (h:.t) = 
+  let rest = filter f t
+  in if (f h) then h :. rest else rest
+
+
+-- use id - it returns itself
+--filter'' _ Nil = Nil
+--filter'' f (h:.t) = (if (f h) then (h :.) else id) filter f t
+
+-- this doesn't build - but it should apparently :P 
+--filter''' :: (a -> Bool) -> (List a -> List a)
+--filter''' f = foldRight (\h -> if f h then (h :.) else id) Nil
+
 
 -- | Append two lists to a new list.
 --
@@ -183,13 +222,34 @@ filteragain p =
   List a
   -> List a
   -> List a
-(++) Nil y =
-  y
-(++) (h:.t) y =
-  h :. ((++) t y)
+(++) Nil Nil = Nil -- you don't need this case
+(++) a Nil = a -- you also don't need this
+(++) Nil b = b
+(++) (h:.t) b = h :. (t ++ b)
+--(++) = foldRight (\h ->  (h:.))
+ 
+--bob = foldRight (:.) Nil ((1 :. 2 :. 3 :. Nil) :. (4 :. 5 :. 6 :. Nil))
+
+--foldRight :: (a -> b -> b) -> b -> List a -> b
+--foldRight _ b Nil      = b
+--foldRight f b (h :. t) = f h (foldRight f b t)
+-- *********************** TODO ask why this prints the second argument backwards, and why can't I just reverse acc and h as arguments. 
+-- also, I haven't provided a base case accumulator (Nil) at the end
+-- I tried to deconstruct it into individual method calls but wasn't successful
+--alice = (:.) (4 :. 5 :. 6 :. Nil)
+--bob = (:.) (1 :. 2 :. 3 :. Nil) ((:.) (4 :. 5 :. 6 :. Nil))
+
+
+
+
+
+
 
 (+++) :: List a -> List a -> List a
-(+++) = flip (foldRight (:.)) 
+(+++) x y = foldRight (:.) y x
+
+(++++) :: List a -> List a -> List a
+(++++) = flip (foldRight (:.))
 
 infixr 5 ++
 
@@ -203,21 +263,12 @@ infixr 5 ++
 -- prop> headOr x (flatten (y :. infinity :. Nil)) == headOr 0 y
 --
 -- prop> sum (map length x) == length (flatten x)
-flatten ::
-  List (List a)
-  -> List a
-flatten Nil =
-  Nil
-flatten (h :. t) = 
-  h ++ flatten t
+flatten :: List (List a) -> List a
+flatten Nil = Nil
+flatten (h:.t) = h ++ flatten t
 
-flatten' :: List (List a) -> List a
-flatten' = foldRight (++) Nil 
-
--- (a :. b :. c :. Nil) :. (d :. e :. Nil) :. (f :. Nil) :. Nil
--- (a :. b :. c :. Nil) ++ (d :. e :. Nil) ++ (f :. Nil) ++ Nil
--- a :. b :. c :. d :. e :. f :. Nil
-
+flatten' :: List(List a) -> List a
+flatten' = foldRight (++) Nil
 
 -- | Map a function then flatten to a list.
 --
@@ -233,26 +284,45 @@ flatMap ::
   (a -> List b)
   -> List a
   -> List b
-flatMap f x =
-  flatten (map f x)
+--flatMap _ Nil = Nil
+--flatMap f (h:.t) = (f h) ++ flatMap f t
 
-flattenagain ::
-  List (List a)
-  -> List a
-flattenagain =
-  flatMap id
+flatMap f = foldRight (\h acc -> (++) (f h) acc) Nil
 
-flatMapagain :: (a -> List b) -> List a -> List b
-flatMapagain f = foldRight ((++) . f) Nil
+-- becomes (take out acc)
+-- flatMap f = foldRight (\h -> (++) (f h)) Nil
 
-flatMap' :: (a -> List b) -> List a -> List b
-flatMap' f =
+-- becomes (rewrite according to )
+-- flatMap f = foldRight (\h -> (++) (f h)) Nil
+
+-- *****************
 -- flatten (map f as)
 -- (.) :: (b -> c) -> (a -> b) -> a -> c
--- (.) flatten ()
 -- f       (g     a)
-   flatten . map f  
--- (.) = f (g a)  
+
+-- (flatten . map f) as
+-- flatten . map f -- you can drop the as argument and parens
+-- (.) = f (g a)
+
+
+--a :.  b :.  c :.  d :.  e :. Nil
+--flatmap f
+--f a ++ f b ++ f c ++ f d ++ f e ++ Nil
+-- *****************
+
+flatMapagain ::
+  (a -> List b)
+  -> List a
+  -> List b
+flatMapagain f = foldRight ((++) . f) Nil
+
+
+-- you can write flatten using flatmap, providing that type 'a' in flatmapAgain is equivalent to ListB. 
+
+flattenAgain :: List (List a) -> List a
+flattenAgain = flatMap id
+
+
 -- | Convert a list of optional values to an optional list of values.
 --
 -- * If the list contains all `Full` values, 
@@ -278,36 +348,73 @@ flatMap' f =
 seqOptional ::
   List (Optional a)
   -> Optional (List a)
-seqOptional =
-  foldRight (twiceOptional (:.)) (Full Nil)
-  
-  {-
-seqOptional Nil =
-  Full Nil
-seqOptional (h:.t) =
-  twiceOptional (:.) h (seqOptional t)
--}
+seqOptional Nil = Full Nil
+seqOptional (Empty :. _) = Empty
+seqOptional (Full n :. Nil) = Full (n :. Nil)
+seqOptional (h:.t) = 
+  case h of 
+    Empty -> Empty
+    Full i -> case seqOptional t of 
+      Empty -> Empty
+      Full l -> Full(i:.l)
 
-  {-
-twiceOptional ::
-  (a -> b -> c) -> Optional a -> Optional b -> Optional c
-twiceOptional f h b =
-  bindOptional (\i -> 
-  mapOptional (f i) b) h
 
-    -}
+-- this function exists elsewhere, so you can refactor.
+--mapOptional :: (a -> b) -> Optional a -> Optional b
+--mapOptional _ Empty = Empty
+--mapOptional f (Full a) = Full (f a)
 
-       {-
+--seqOptional' ::
+--  List (Optional a)
+--  -> Optional (List a)
+--seqOptional' Nil = Full Nil
+--seqOptional' (h:.t) = 
+--  case h of 
+--    Empty -> Empty
+--    Full i -> mapOptional (i:.) seqOptional(t)
 
-bindOptional :: (a -> Optional b) -> Optional a -> Optional b
-bindOptional _ Empty    = Empty
-bindOptional f (Full a) = f a
--}
-{-
-mapOptional :: (a -> b) -> Optional a -> Optional b
-mapOptional _ Empty    = Empty
-mapOptional f (Full a) = Full (f a)
--}
+-- this function exists too, so you can refactor even more.
+--bindOptional:: (a->Optional b) -> Optional a -> Optional b
+--bindOptional _ Empty = Empty
+--bindOptional f (Full a) = f a
+
+--seqOptional'' ::
+--  List (Optional a)
+--  -> Optional (List a)
+--seqOptional'' Nil = Full Nil
+--seqOptional'' (h:.t) = 
+--  bindOptional (\i -> mapOptional(i:.) seqOptional(t)) h
+
+
+-- and yes, even more functions that means you can refactor further
+--twiceOptional :: (a -> b -> c) -> Optional a -> Optional b -> Optional c
+--twiceOptional f a b = bindOptional (\aa -> mapOptional (f aa) b) a
+
+--seqOptional''' ::
+--  List (Optional a)
+--  -> Optional (List a)
+--seqOptional''' Nil = Full Nil
+--seqOptional''' (h:.t) = 
+--  twiceOptional (:.) h (seqOptional t) 
+
+-- using foldRight
+-- seqOptional'''' = foldRight (twiceOptional (:.)) (Full Nil)
+
+
+--seqOptional' :: List (Optional Int) -> Int
+--seqOptional' ((Full n) :. t) = undefined
+--seqOptional' (Empty :. t) = undefined
+--seqOptional' Nil = undefined
+
+--seqOptional'' Nil =
+--seqOptional'' (h:.t) = 
+--  case h of 
+--    Empty -> 0
+--    Full n -> n
+
+
+
+
 
 -- | Find the first element in the list matching the predicate.
 --
@@ -329,10 +436,22 @@ find ::
   (a -> Bool)
   -> List a
   -> Optional a
-find _ Nil =
-  Empty
-find f (h :. t) =   
-  if f h then Full h else find f t
+find _ Nil = Empty
+find f (h:.t) = if f h then Full h else find f t
+--find f = foldRight (\h acc -> 
+--  case acc of 
+--    Empty -> if f h then Full h else Empty
+--    Full a -> Full a) Empty
+
+-- this doesn't compile. it doesn't work becuase the types passed to headOr are different types (one Optional, one n)
+--find f list = Full(headOr Empty (filter f list))
+
+-- in this case, the original implementation of find is much simpler than the foldRight version. 
+-- foldRight is best when your inputs and outputs are both lists, and they both have the same length. 
+-- you are essentially only performing a transformation on each element in the list. 
+
+
+-- ******** look up the definition of if as a function
 
 
 -- | Determine if the length of the given list is greater than 4.
@@ -351,20 +470,14 @@ find f (h :. t) =
 lengthGT4 ::
   List a
   -> Bool
-lengthGT4 (_:._:._:._:._:._) =
-  True
-lengthGT4 _ =
-  False
+lengthGT4 (_:._:._:._:._:._) = True
+lengthGT4 _ = False
+-- written this way because otherwise the length of infinity will never return....!
 
 -- | Reverse a list.
 --
 -- >>> reverse Nil
 -- []
---
--- >>> reverse (1 :. 2 :. 3 :. Nil)
--- [3, 2, 1]
---  
--- reverse (h :. t) = reverse t ++ (h :. Nil)
 --
 -- prop> let types = x :: List Int in reverse x ++ reverse y == reverse (y ++ x)
 --
@@ -372,22 +485,22 @@ lengthGT4 _ =
 reverse ::
   List a
   -> List a
-reverse =
-  foldLeft (flip (:.)) Nil
+reverse _ = error "todo" 
 
-reverse0 :: List a -> List a -> List a
-reverse0    acc       Nil    = acc
-reverse0    acc       (h:.t) = reverse0 (h:.acc) t
+--reverse (h:t) = reverse t ++ (h:.Nil) -- this technically works, but is extremely inefficient with n^2 runtime
 
+-- these are all equivalent
+--reverse = foldLeft (\r e -> e :. r) Nil
+--reverse = foldLeft (\r e -> (:.) e r) Nil
+--reverse = foldLeft (flip (:.)) Nil
 
+-- this is the tail recursive version, the pattern matching is different to all the other versions we've written which are effectively foldLeft.
+--reverse' :: List a -> List a -> List a
+--reverse' acc Nil = acc
+--reverse' acc (h:.t) = reverse' (h:.acc) t
 
-
-
-
-
-
-
-
+-- you can then rewrite it as 
+-- reverse = reverse' Nil
 
 
 -- | Produce an infinite `List` that seeds with the given value at its head,
@@ -403,7 +516,7 @@ produce ::
   -> a
   -> List a
 produce f a =
-  (:.) a (produce f (f a))
+  a :. produce f (f a)
 
 -- | Do anything other than reverse a list.
 -- Is it even possible?
@@ -411,8 +524,7 @@ produce f a =
 -- >>> notReverse Nil
 -- []
 --
--- prop> let types = x :: List Int 
--- in notReverse x ++ notReverse y == notReverse (y ++ x)
+-- prop> let types = x :: List Int in notReverse x ++ notReverse y == notReverse (y ++ x)
 --
 -- prop> let types = x :: Int in notReverse (x :. Nil) == x :. Nil
 notReverse ::
@@ -767,3 +879,18 @@ instance P.Monad List where
     flip flatMap
   return =
     (:. Nil)
+
+
+
+
+---- 
+
+--foldLeft :: (b -> a -> b) -> b -> List a -> b
+--foldLeft      f               z    list 
+
+----
+--var r = Nil;
+--foreach e in list {
+--  r = (\r e -> e :. r);
+--}
+--return r;

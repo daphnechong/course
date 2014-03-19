@@ -20,6 +20,9 @@ bindOptional :: (a -> Optional b) -> Optional a -> Optional b
 bindOptional _ Empty    = Empty
 bindOptional f (Full a) = f a
 
+fbindOptional ::  Optional a -> (a -> Optional b) -> Optional b
+fbindOptional = flip bindOptional
+
 (??) :: Optional a -> a -> a
 Empty ?? d  = d
 Full a ?? _ = a
