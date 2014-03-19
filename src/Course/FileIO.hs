@@ -63,18 +63,19 @@ the contents of c
 -- /Tip:/ use @getArgs@ and @run@
 main ::
   IO ()
-main =
-  error "todo"
+main = error "todo"
 
-type FilePath =
-  Chars
+type FilePath = Chars
 
 -- /Tip:/ Use @getFiles@ and @printFiles@.
 run ::
   Chars
   -> IO ()
-run =
-  error "todo"
+run filepath =
+  do 
+    content <- readFile filepath
+    files <- getFiles (lines content)
+    printFiles files
 
 getFiles ::
   List FilePath
@@ -98,7 +99,15 @@ printFiles files = foldRight (\(fp, contents) _ -> printFile fp contents) (pure(
 
 -- officially:
 -- void (sequenceIO (map (\(path, ct) -> printFile path ct)x))
--- (a -> b -> c) -> ((a,b) ->)
+
+-- but to refactor, examine the signature of the innermost function
+-- (a -> b -> c) -> ((a,b) -> c)
+-- you can check hoogle (haskell.org/hoogle) and put in the signature above into the search, 
+-- it will return you something that matches the signature... uncurry
+-- void (sequenceIO (map (uncurry printFile) x))
+
+-- and then use function composition
+-- void. sequenceIO . map. uncurry printFile
 
 printFile ::
   FilePath
