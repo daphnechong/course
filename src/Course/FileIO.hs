@@ -79,8 +79,12 @@ run =
 getFiles ::
   List FilePath
   -> IO (List (FilePath, Chars)) -- return type will be List(FilePath, Chars) and IO is just signalling to the compiler that there are side effects and so you need to keep those in mind when reshuffling arguments
-getFiles files = undefined
- -- foldRight (\fp _ -> getFile fp) (void()) files
+getFiles files = sequenceIO (getFile <$> files)
+-- my attempt:
+-- foldRight (\fp _ -> getFile fp) (void()) files
+
+-- but you can define it using fmap, i.e. map a funtion on to each item in the list
+
 
 getFile ::
   FilePath
@@ -90,8 +94,11 @@ getFile path = readFile path >>= \contents -> pure (path, contents)
 printFiles ::
   List (FilePath, Chars)
   -> IO ()
-printFiles files = 
-  foldRight (\(fp, contents) _ -> printFile fp contents) (pure()) files
+printFiles files = foldRight (\(fp, contents) _ -> printFile fp contents) (pure()) files
+
+-- officially:
+-- void (sequenceIO (map (\(path, ct) -> printFile path ct)x))
+-- (a -> b -> c) -> ((a,b) ->)
 
 printFile ::
   FilePath
@@ -104,11 +111,51 @@ printFile ::
 printFile path contents =  
   putStrLn path  >>= \_ -> putStrLn contents
 
---sequenceIO :: List (IO a) -> IO (List a)
---sequenceIO (h:.t) = twiceAnything (pure h) (sequenceIO t)
+-- putStrLn ("====== " ++ path ++ "\n" ++ contents)
 
-twiceAnything :: Bind f => f a -> f (List a) -> f (List a)
-twiceAnything h t = 
+-- you can also write as do
+  --do 
+  --  putStrLn path 
+  --  putStrLn contents
+
+
+sequenceIO :: List (IO a) -> IO (List a)
+-- sequenceIO using foldRight
+--sequenceIO = foldRight (twiceIO (:.)) (pure Nil)
+ 
+ -- sequenceIO using pattern matching
+sequenceIO Nil = pure Nil
+sequenceIO (h:.t) = 
+  h >>= \a -> 
+  sequenceIO t >>= \r -> 
+  pure (a:.r)
+
+
+-- this is the definition of lift2 but for IO
+
+twiceIO :: (a -> b -> c) -> IO a -> IO b -> IO c
+twiceIO f a b = 
+  a >>= \aa -> b >>= \bb -> pure (f aa bb)
+
+-- you can rewrite the (Bind f, Applicative f) as Monad f
+-- the only reason why we can't is that we don't have monad defined in this set of files... :)
+-- in reality the signature should be Monad f => (a -> b -> c) -> f a -> f b -> f c
+-- and this says, anything of type f needs to be a monad, i.e. have Bind and Applicative functions
+mylift2 :: (Bind f, Applicative f) => (a -> b -> c) -> f a -> f b -> f c
+mylift2 f a b = 
+  a >>= \aa -> b >>= \bb -> pure (f aa bb)
+
+--do 
+--  aa <- a
+--  bb <- b
+--  pure (f aa bb)
+
+-- I have no idea what this function does :/
+listAnything :: Bind f => f a -> f (List a) -> f (List a)
+listAnything h t = 
   (:.) <$> h <*> t
 
--- case listy of (x,y):.t -> x
+-- mylift2 (:.) h t
+
+-- Course for learning Haskell 
+-- http://www.seas.upenn.edu/~cis194/lectures.html
