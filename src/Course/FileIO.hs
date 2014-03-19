@@ -27,6 +27,7 @@ Abstractions --
 
     <$>, <*>, >>=, =<<, pure
 
+
 Problem --
   Given a single argument of a file name, read that file,
   each line of that file contains the name of another file,
@@ -77,26 +78,37 @@ run =
 
 getFiles ::
   List FilePath
-  -> IO (List (FilePath, Chars))
-getFiles =
-  error "todo"
+  -> IO (List (FilePath, Chars)) -- return type will be List(FilePath, Chars) and IO is just signalling to the compiler that there are side effects and so you need to keep those in mind when reshuffling arguments
+getFiles files = undefined
+ -- foldRight (\fp _ -> getFile fp) (void()) files
 
 getFile ::
   FilePath
   -> IO (FilePath, Chars)
-getFile =
-  error "todo"
+getFile path = readFile path >>= \contents -> pure (path, contents)
 
 printFiles ::
   List (FilePath, Chars)
   -> IO ()
-printFiles =
-  error "todo"
+printFiles files = 
+  foldRight (\(fp, contents) _ -> printFile fp contents) (pure()) files
 
 printFile ::
   FilePath
   -> Chars
   -> IO ()
-printFile =
-  error "todo"
 
+-- path :: FilePath
+-- contents :: Chars
+-- Chars -> IO()
+printFile path contents =  
+  putStrLn path  >>= \_ -> putStrLn contents
+
+--sequenceIO :: List (IO a) -> IO (List a)
+--sequenceIO (h:.t) = twiceAnything (pure h) (sequenceIO t)
+
+twiceAnything :: Bind f => f a -> f (List a) -> f (List a)
+twiceAnything h t = 
+  (:.) <$> h <*> t
+
+-- case listy of (x,y):.t -> x
