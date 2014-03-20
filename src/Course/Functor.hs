@@ -130,7 +130,7 @@ void ::
   f a
   -> f ()
 void =
-  error "todo"
+  (<$>) (\_ -> ())
 
 -----------------------
 -- SUPPORT LIBRARIES --

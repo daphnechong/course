@@ -63,7 +63,10 @@ the contents of c
 -- /Tip:/ use @getArgs@ and @run@
 main ::
   IO ()
-main = error "todo"
+main = 
+  do 
+     args <- getArgs
+     void (sequenceIO (map run args))
 
 type FilePath = Chars
 
@@ -95,7 +98,9 @@ getFile path = readFile path >>= \contents -> pure (path, contents)
 printFiles ::
   List (FilePath, Chars)
   -> IO ()
-printFiles files = foldRight (\(fp, contents) _ -> printFile fp contents) (pure()) files
+printFiles files = 
+  -- void . sequenceIO . map (uncurry printFile)
+  -- void (foldRight (\a r -> uncurry printFile a >>= \_ -> r) (pure Nil) files)
 
 -- officially:
 -- void (sequenceIO (map (\(path, ct) -> printFile path ct)x))
@@ -168,3 +173,11 @@ listAnything h t =
 
 -- Course for learning Haskell 
 -- http://www.seas.upenn.edu/~cis194/lectures.html
+
+-- nicta fp google group
+-- lambda ladies google group
+
+-- Tic Tac Toe haskell
+
+-- to get better on applicative finish file Functor, then Apply, then Applicative
+
