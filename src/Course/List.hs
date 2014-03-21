@@ -164,7 +164,7 @@ map' ::
   -> List a
   -> List b
 map' _ Nil = Nil
-map' f (h:.t) = (:.) (f h) (map' f t)
+map' f (head:.tail) = (:.) (f head) (map' f tail)
 
 -- | Return elements satisfying the given predicate.
 --

@@ -98,8 +98,7 @@ getFile path = readFile path >>= \contents -> pure (path, contents)
 printFiles ::
   List (FilePath, Chars)
   -> IO ()
-printFiles files = 
-  -- void . sequenceIO . map (uncurry printFile)
+printFiles files = void (foldRight (\a r -> uncurry printFile a >>= \_ -> r) (pure Nil) files)
   -- void (foldRight (\a r -> uncurry printFile a >>= \_ -> r) (pure Nil) files)
 
 -- officially:
@@ -180,4 +179,3 @@ listAnything h t =
 -- Tic Tac Toe haskell
 
 -- to get better on applicative finish file Functor, then Apply, then Applicative
-
